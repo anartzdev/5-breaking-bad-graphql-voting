@@ -1,55 +1,81 @@
-import express from 'express';
-import compression from 'compression';
-import cors from 'cors';
-import schema from './schema';
-import { ApolloServer, PubSub } from 'apollo-server-express';
-import { createServer } from 'http';
-import environments from './config/environments';
-import Database from './config/database';
+import express from "express";
+import compression from "compression";
+import schema from "./schema";
+import { ApolloServer } from "apollo-server-express";
+import { createServer } from "http";
+import environments from "./config/environments";
+import Database from "./config/database";
+import { PubSub } from "graphql-subscriptions";
+import { ConnectionContext, SubscriptionServer } from "subscriptions-transport-ws";
+import { execute, subscribe } from "graphql";
+import cors from "cors";
 
-import expressPlayground from 'graphql-playground-middleware-express';
-if (process.env.NODE_ENV !== 'production') {
-    const envs = environments;
-    console.log(envs);
+if (process.env.NODE_ENV !== "production") {
+  const envs = environments;
+  console.log(envs);
 }
 
 async function init() {
-    const app = express();
+  const app = express();
 
-    app.use('*', cors());
-    const pubsub = new PubSub();
-    app.use(compression());
+  app.use(cors());
 
-    const database = new Database();
-    const db = await database.init();
+  app.use(compression());
+  const httpServer = createServer(app);
 
-    const context: any = async() => {
-        return { db, pubsub };
-    };
-    
-    const server = new ApolloServer({
-        schema,
-        context,
-        introspection: true
-    });
+  const database = new Database();
+  const db = await database.init();
 
-    server.applyMiddleware({ app });
+  const context: any = async () => {
+    return { db };
+  };
 
-    app.use('/', expressPlayground({
-        endpoint: '/graphql'
-    }))
+  
 
-    const PORT = process.env.PORT || 5300;
-    const httpServer = createServer(app);
-    server.installSubscriptionHandlers(httpServer);
-    httpServer.listen(
-        { port: PORT },
-        () => {
-            console.log('====================================SERVER==============================');
-            console.log(`Votaciones Breaking Bad API GraphQL http://localhost:${PORT}${server.graphqlPath}`);
-            console.log(`Subscription Votaciones Breaking Bad API GraphQL ws://localhost:${PORT}${server.subscriptionsPath}`)
-        }
+  const server = new ApolloServer({
+    schema,
+    context,
+    introspection: true
+  });
+
+  
+
+  await server.start();
+
+  server.applyMiddleware({ app });
+
+  SubscriptionServer.create(
+    {
+      schema,
+      execute,
+      subscribe,
+      onConnect(connectionParams: object, webSocket: WebSocket, context: ConnectionContext) {
+        console.log("Connected!");
+      },
+      onDisconnect( webSocket: WebSocket, context: ConnectionContext) {
+        console.log("Disconnected!");
+      },
+    },
+    { server: httpServer, path: server.graphqlPath }
+  );
+
+  app.get("/", (_, res) => {
+    res.redirect("/graphql");
+  });
+
+  const PORT = process.env.PORT || 5300;
+
+  httpServer.listen({ port: PORT }, () => {
+    console.log(
+      "====================================SERVER=============================="
     );
+    console.log(
+      `Votaciones Breaking Bad API GraphQL http://localhost:${PORT}${server.graphqlPath}`
+    );
+    console.log(
+      `Subscription Votaciones Breaking Bad API GraphQL ws://localhost:${PORT}${server.graphqlPath}`
+    );
+  });
 }
 
 init();

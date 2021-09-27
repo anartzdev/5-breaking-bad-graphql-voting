@@ -1,6 +1,6 @@
-import { IResolvers } from "graphql-tools";
 import { getCharacterVotes } from "../lib/database-operations";
 import { PHOTO_URL } from "../config/constants";
+import { IResolvers } from "@graphql-tools/utils";
 
 const type: IResolvers = {
     Character: {

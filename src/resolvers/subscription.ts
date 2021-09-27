@@ -1,12 +1,13 @@
-import { withFilter } from "apollo-server-express";
-import { IResolvers } from "graphql-tools";
-import { CHANGE_VOTES, CHANGE_VOTE } from "../config/constants";
-
+import { IResolvers } from "@graphql-tools/utils";
+import { PubSub } from "graphql-subscriptions";
+import { CHANGE_VOTES } from "../config/constants";
+const pubsub = new PubSub();
 const subscription: IResolvers = {
     Subscription: {
         newVote: {
-            subscribe: (_: void, __: any, { pubsub }: any) => {
-                return pubsub.asyncIterator(CHANGE_VOTES);
+            subscribe: () => {
+              console.log("dkdkdkd");
+                return pubsub.asyncIterator([CHANGE_VOTES]);
             }
         },
     },

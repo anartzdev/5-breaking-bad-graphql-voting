@@ -1,4 +1,4 @@
-import { IResolvers } from "graphql-tools";
+import { IResolvers } from "@graphql-tools/utils";
 import { getCharacters, getCharacter } from "../lib/database-operations";
 
 const query: IResolvers = {

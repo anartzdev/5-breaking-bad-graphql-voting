@@ -1,7 +1,9 @@
-import { IResolvers } from "graphql-tools";
-import { getCharacter, getCharacters, asignVoteId, getVote } from "../lib/database-operations";
+import { getCharacter, getCharacters, asignVoteId } from "../lib/database-operations";
 import { Datetime } from "../lib/datetime";
-import { COLLECTIONS, CHANGE_VOTES, CHANGE_VOTE } from "../config/constants";
+import { COLLECTIONS, CHANGE_VOTES } from "../config/constants";
+import { IResolvers } from "@graphql-tools/utils";
+import { PubSub } from "graphql-subscriptions";
+const pubsub = new PubSub();
 async function response(status: boolean, message: string, db: any) {
     
     return {
@@ -10,12 +12,14 @@ async function response(status: boolean, message: string, db: any) {
         characters: await getCharacters(db)
     }
 }
-async function sendNotification(pubsub: any, db: any) {
-    pubsub.publish(CHANGE_VOTES, { newVote: await getCharacters(db)})
+async function sendNotification(db: any) {
+    const newVote = await getCharacters(db);
+    console.log(newVote);
+    pubsub.publish(CHANGE_VOTES, { newVote })
 }
 const mutation: IResolvers = {
     Mutation: {
-        async addVote(_: void, { character}: any, { pubsub, db}: any) {
+        async addVote(_: void, { character}: any, { db}: any) {
             // Comprobar que el personaje existe
             const selectCharacter = await getCharacter(db, character);
             if (selectCharacter === null || selectCharacter === undefined) {
@@ -35,7 +39,7 @@ const mutation: IResolvers = {
             // Añadimos el voto
             return await db.collection(COLLECTIONS.VOTES).insertOne(vote).then(
                 async() => {
-                    sendNotification(pubsub, db);
+                    sendNotification(db);
                     return vote
                 }
             ).catch(
